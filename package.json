@@ -1,0 +1,28 @@
+{
+  "name": "aquaponic",
+  "version": "1.0.0",
+  "description": "This is app for save data from mqtt and show it to grafana also can access data from restfull api",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon app.js"
+  },
+  "keywords": [
+    "servers",
+    "api",
+    "mqtt",
+    "aquaponic",
+    "nodejs",
+    "expressjs"
+  ],
+  "author": "Muhibuddin",
+  "license": "ISC",
+  "dependencies": {
+    "body-parse": "^0.1.0",
+    "express": "^4.17.1",
+    "mqtt": "^4.2.6",
+    "mysql": "^2.18.1",
+    "mysql2": "^2.2.5",
+    "nodemon": "^2.0.6",
+    "sequelize": "^6.3.5"
+  }
+}
