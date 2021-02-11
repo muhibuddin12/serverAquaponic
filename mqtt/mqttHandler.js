@@ -4,6 +4,9 @@ const notification = require("../service/sendNotification");
 const db = require("../config/db_config");
 const Datasensors = require("../models/datasensorsModel");
 const Dataactuators = require("../models/dataactuatorsModel");
+const actuatorStatus = require("../models/actuatorstatusModel");
+const ParameterSensor = require("../models/parametersensorModel");
+const { where } = require("sequelize");
 
 db.authenticate().then(() =>
    console.log("Berhasil terkoneksi mqtt")
@@ -54,13 +57,8 @@ class mqttHandler {
             const dataSensor = new Datasensors({
                id : null, 
                ph: data.ph.toString(),
-               do: data.do.toString(),
                tds: data.tds.toString(),
                watertemp: data.watertemp.toString(),
-               waterlevel: data.waterlevel.toString(),
-               ammonia: data.ammonia.toString(),
-               humidity: data.humidity.toString(),
-               airtemp: data.airtemp.toString(),
                time: data.time.toString(),
             });
             try {
@@ -76,6 +74,22 @@ class mqttHandler {
                action: data.action.toString(),
                time: data.time.toString()
             });
+            
+            //ini berguna untuk membuat status ph tidak bisa dihidupkan lagi oleh user
+            if (data.actuatorName.toString() == "pH up") {
+               await actuatorStatus.update({status : 0},{
+                  where:{
+                     id: 1
+                  }
+               });
+            }
+            else if (data.actuatorName.toString() == "pH down") {
+               await actuatorStatus.update({status : 0},{
+                  where:{
+                     id: 2
+                  }
+               });
+            }
 
             try {
                const saveDataActuator = await dataActuator.save();
@@ -84,20 +98,40 @@ class mqttHandler {
                
             }
          }
-
-         //hidupkan aktuator ph up dan ph down berdasarkan perintah dari alat
-         //to push notification to Android App
-         if (parseInt(data.watertemp.toString()) < 27.0) {
-            notification.sendNotification(
-               sendMessage(
-                  "Hidupkan Aktuator Pemanas Air",
-                  "Kondisi Suhu Air : " + data.watertemp.toString() + " \u00b0C, kondisi tersebut dibawah normal."
-                  )
-            );
+         else if(data.data.toString() == "notification"){
+            // console.log(data.actuatorName.toString());
+            // to push notification to Android App
+            if (data.actuatorName.toString() == "pH up") {
+               await actuatorStatus.update({status : 1},{
+                  where:{
+                     id: 1
+                  }
+               });
+               notification.sendNotification(
+                  sendMessage(
+                     "Hidupkan Aktuator Penambah pH Air",
+                     "Kondisi pH Air : " + data.ph.toString() + ", kondisi tersebut dibawah normal."
+                     )
+               );
+            }
+            else if (data.actuatorName.toString() == "pH down") {
+               await actuatorStatus.update({status : 1},{
+                  where:{
+                     id: 2
+                  }
+               });
+               notification.sendNotification(
+                  sendMessage(
+                     "Hidupkan Aktuator Penurun pH Air",
+                     "Kondisi pH Air : " + data.ph.toString() + ", kondisi tersebut diatas normal."
+                     )
+               );
+            }
          }
 
-         //to push notification to Android App
-         if (parseInt(data.ph.toString()) < 6.0) {
+         const parameter = await ParameterSensor.findOne({where:{id:1}});
+
+         if (data.ph.toString() < parameter.ph_min) {
             notification.sendNotification(
                sendMessage(
                   "Hidupkan Aktuator Penambah pH Air",
@@ -105,11 +139,22 @@ class mqttHandler {
                   )
             );
          }
-         else if (parseInt(data.ph.toString()) > 7.0) {
+         else if (data.ph.toString() > parameter.ph_max) {
             notification.sendNotification(
                sendMessage(
                   "Hidupkan Aktuator Penurun pH Air",
                   "Kondisi pH Air : " + data.ph.toString() + ", kondisi tersebut diatas normal."
+                  )
+            );
+         }
+
+         //hidupkan aktuator ph up dan ph down berdasarkan perintah dari alat
+         //to push notification to Android App
+         if (parseInt(data.watertemp.toString()) < parameter.suhu_min) {
+            notification.sendNotification(
+               sendMessage(
+                  "Hidupkan Aktuator Pemanas Air",
+                  "Kondisi Suhu Air : " + data.watertemp.toString() + " \u00b0C, kondisi tersebut dibawah normal."
                   )
             );
          }
